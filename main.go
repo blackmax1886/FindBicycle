@@ -34,34 +34,33 @@ func main() {
 
 	var names []*cdp.Node
 	if err := chromedp.Run(ctx, chromedp.Nodes(detailsSel+`/h2/text()`, &names)); err != nil {
-		log.Fatalf("could not get product infomation : %v", err)
+		log.Fatalf("could not get product names : %v", err)
 	}
 
-	log.Printf("NodeValue : %s", names[0].NodeValue)
-	log.Printf("NodeValue : %s", names[1].NodeValue)
+	//log.Printf("NodeValue : %s", names[0].NodeValue)
+	//log.Printf("NodeValue : %s", names[1].NodeValue)
 
 	var subnames []*cdp.Node
 	if err := chromedp.Run(ctx, chromedp.Nodes(detailsSel+`/h2/span/text()`, &subnames)); err != nil {
-		log.Fatalf("could not get product infomation : %v", err)
+		log.Fatalf("could not get product subnames : %v", err)
 	}
-	log.Printf("NodeValue : %s", subnames[0].NodeValue)
-	log.Printf("NodeValue : %s", subnames[1].NodeValue)
+	//log.Printf("NodeValue : %s", subnames[0].NodeValue)
+	//log.Printf("NodeValue : %s", subnames[1].NodeValue)
 
-	//for i := 0; i < len(details); i++ {
-	//	//log.Printf("product name found : %s%s", details[2*i].NodeValue,details[2*i+1].NodeValue)
-	//
-	//}
-
-	//result := make(map[string]product)
-	//for i:=0; i < len(details); i++ {
-	//
-	//}
+	var prices []*cdp.Node
+	if err := chromedp.Run(ctx, chromedp.Nodes(detailsSel+`/div/div/span/text()`, &prices)); err != nil {
+		log.Fatalf("could not get product prices")
+	}
+	log.Printf("NodeValue : %s", prices[0].NodeValue)
+	log.Printf("NodeValue : %s", prices[1].NodeValue)
 
 	var urls []*cdp.Node
 	if err := chromedp.Run(ctx, chromedp.Nodes(detailsSel+`/parent::a`, &urls)); err != nil {
 		log.Fatalf("could not get product urls : %v", err)
 	}
-	for i := 0; i < len(urls); i++ {
-		log.Printf("product link found : %s", urls[i].AttributeValue("href"))
-	}
+
+	//result := make(map[string]product)
+	//for i:=0; i < len(details); i++ {
+	//
+	//}
 }
