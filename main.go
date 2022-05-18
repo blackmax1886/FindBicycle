@@ -8,7 +8,7 @@ import (
 )
 
 type product struct {
-	URL, Name, Price string
+	URL, Price string
 }
 
 func main() {
@@ -36,7 +36,7 @@ func main() {
 	if err := chromedp.Run(ctx, chromedp.Nodes(detailsSel+`/h2/text()`, &names)); err != nil {
 		log.Fatalf("could not get product names : %v", err)
 	}
-
+	log.Println(len(names))
 	//log.Printf("NodeValue : %s", names[0].NodeValue)
 	//log.Printf("NodeValue : %s", names[1].NodeValue)
 
@@ -44,6 +44,7 @@ func main() {
 	if err := chromedp.Run(ctx, chromedp.Nodes(detailsSel+`/h2/span/text()`, &subnames)); err != nil {
 		log.Fatalf("could not get product subnames : %v", err)
 	}
+	log.Println(len(subnames))
 	//log.Printf("NodeValue : %s", subnames[0].NodeValue)
 	//log.Printf("NodeValue : %s", subnames[1].NodeValue)
 
@@ -51,16 +52,26 @@ func main() {
 	if err := chromedp.Run(ctx, chromedp.Nodes(detailsSel+`/div/div/span/text()`, &prices)); err != nil {
 		log.Fatalf("could not get product prices")
 	}
-	log.Printf("NodeValue : %s", prices[0].NodeValue)
-	log.Printf("NodeValue : %s", prices[1].NodeValue)
+	log.Println(len(prices))
+	//log.Printf("NodeValue : %s", prices[0].NodeValue)
+	//log.Printf("NodeValue : %s", prices[1].NodeValue)
 
 	var urls []*cdp.Node
 	if err := chromedp.Run(ctx, chromedp.Nodes(detailsSel+`/parent::a`, &urls)); err != nil {
 		log.Fatalf("could not get product urls : %v", err)
 	}
+	log.Println(len(urls))
 
-	//result := make(map[string]product)
-	//for i:=0; i < len(details); i++ {
-	//
-	//}
+	products := make(map[string]product)
+	for i := 0; i < len(names); i++ {
+		name := names[i].NodeValue + subnames[i].NodeValue
+		products[name] = product{
+			URL:   urls[i].NodeValue,
+			Price: prices[i].NodeValue,
+		}
+	}
+
+	for k, v := range products {
+		log.Printf("product %s (%s): '%s'", k, v.URL, v.Price)
+	}
 }
