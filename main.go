@@ -18,7 +18,6 @@ type product struct {
 
 func main() {
 	URL := "https://www.cannondale.com/ja-jp/bikes"
-	//URL := "https://www.cannondale.com/ja-jp"
 
 	ctx, cancel := chromedp.NewContext(context.Background())
 	defer cancel()
@@ -29,6 +28,7 @@ func main() {
 	detailsSel := `//*[@class="product-details"]/h2`
 	var nameNodes []*cdp.Node
 	var priceNodes []*cdp.Node
+	var urlNodes []*cdp.Node
 	err := chromedp.Run(ctx, chromedp.Tasks{
 		chromedp.Navigate(URL),
 		chromedp.WaitVisible(`body > footer`),
@@ -49,6 +49,7 @@ func main() {
 		//}),
 
 		chromedp.Nodes(detailsSel+`/following-sibling::div/div/span/text()`, &priceNodes),
+		chromedp.Nodes(`//*[@class="content product product-card__link"]`, &urlNodes),
 	},
 	)
 	if err != nil {
@@ -61,7 +62,7 @@ func main() {
 
 		bike := product{
 			Name:  nameNode.Children[0].NodeValue,
-			URL:   "",
+			URL:   urlNodes[i].AttributeValue("href"),
 			Price: priceNodes[i].NodeValue,
 		}
 		if nameNode.ChildNodeCount > 1 {
