@@ -2,13 +2,18 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"github.com/chromedp/cdproto/cdp"
+	"github.com/chromedp/cdproto/dom"
 	"github.com/chromedp/chromedp"
+	"io"
 	"log"
+	"strings"
+	"time"
 )
 
 type product struct {
-	URL, Price string
+	Name, URL, Price string
 }
 
 func main() {
@@ -18,60 +23,76 @@ func main() {
 	ctx, cancel := chromedp.NewContext(context.Background())
 	defer cancel()
 
-	var res string
+	ctx, cancel = context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+
+	detailsSel := `//*[@class="product-details"]/h2`
+	var nameNodes []*cdp.Node
+	var priceNodes []*cdp.Node
 	err := chromedp.Run(ctx, chromedp.Tasks{
 		chromedp.Navigate(URL),
 		chromedp.WaitVisible(`body > footer`),
-		chromedp.Text(`//*[@id="ProductGrid"]/div[2]/div/div[1]/div[1]/h3`, &res, chromedp.NodeVisible),
+		chromedp.Nodes(detailsSel, &nameNodes),
+		chromedp.ActionFunc(func(ctx context.Context) error {
+			for _, nameNode := range nameNodes {
+				err := dom.RequestChildNodes(nameNode.NodeID).WithDepth(-1).Do(ctx)
+				if err != nil {
+					return err
+				}
+			}
+			return nil
+		}),
+		chromedp.Sleep(time.Second),
+		//chromedp.ActionFunc(func(ctx context.Context) error {
+		//	printNodes(os.Stdout, nameNodes, "", "  ")
+		//	return nil
+		//}),
+
+		chromedp.Nodes(detailsSel+`/following-sibling::div/div/span/text()`, &priceNodes),
 	},
 	)
 	if err != nil {
 		log.Fatal(err)
 	}
-	log.Println(res)
 
-	detailsSel := `//*[@class="product-details"]/`
+	var bikes []product
+	for i, nameNode := range nameNodes {
+		//printNodes(os.Stdout, nameNode.Children, "", "  ")
 
-	var names []*cdp.Node
-	if err := chromedp.Run(ctx, chromedp.Nodes(detailsSel+`/h2/text()`, &names)); err != nil {
-		log.Fatalf("could not get product names : %v", err)
-	}
-	log.Println(len(names))
-	//log.Printf("NodeValue : %s", names[0].NodeValue)
-	//log.Printf("NodeValue : %s", names[1].NodeValue)
-
-	var subnames []*cdp.Node
-	if err := chromedp.Run(ctx, chromedp.Nodes(detailsSel+`/h2/span/text()`, &subnames)); err != nil {
-		log.Fatalf("could not get product subnames : %v", err)
-	}
-	log.Println(len(subnames))
-	//log.Printf("NodeValue : %s", subnames[0].NodeValue)
-	//log.Printf("NodeValue : %s", subnames[1].NodeValue)
-
-	var prices []*cdp.Node
-	if err := chromedp.Run(ctx, chromedp.Nodes(detailsSel+`/div/div/span/text()`, &prices)); err != nil {
-		log.Fatalf("could not get product prices")
-	}
-	log.Println(len(prices))
-	//log.Printf("NodeValue : %s", prices[0].NodeValue)
-	//log.Printf("NodeValue : %s", prices[1].NodeValue)
-
-	var urls []*cdp.Node
-	if err := chromedp.Run(ctx, chromedp.Nodes(detailsSel+`/parent::a`, &urls)); err != nil {
-		log.Fatalf("could not get product urls : %v", err)
-	}
-	log.Println(len(urls))
-
-	products := make(map[string]product)
-	for i := 0; i < len(names); i++ {
-		name := names[i].NodeValue + subnames[i].NodeValue
-		products[name] = product{
-			URL:   urls[i].NodeValue,
-			Price: prices[i].NodeValue,
+		bike := product{
+			Name:  nameNode.Children[0].NodeValue,
+			URL:   "",
+			Price: priceNodes[i].NodeValue,
 		}
+		if nameNode.ChildNodeCount > 1 {
+			bike.Name += nameNode.Children[1].Children[0].NodeValue
+		}
+		bikes = append(bikes, bike)
 	}
 
-	for k, v := range products {
-		log.Printf("product %s (%s): '%s'", k, v.URL, v.Price)
+	for _, bike := range bikes {
+		log.Printf("\nModel Name: %s\nURL: %s\nPrice: %s", bike.Name, bike.URL, bike.Price)
+	}
+}
+
+func printNodes(w io.Writer, nodes []*cdp.Node, padding, indent string) {
+	// This will block until the chromedp listener closes the channel
+	for _, node := range nodes {
+		switch {
+		case node.NodeName == "#text":
+			fmt.Fprintf(w, "%s#text: %q\n", padding, node.NodeValue)
+		default:
+			fmt.Fprintf(w, "%s%s:\n", padding, strings.ToLower(node.NodeName))
+			if n := len(node.Attributes); n > 0 {
+				fmt.Fprintf(w, "%sattributes:\n", padding+indent)
+				for i := 0; i < n; i += 2 {
+					fmt.Fprintf(w, "%s%s: %q\n", padding+indent+indent, node.Attributes[i], node.Attributes[i+1])
+				}
+			}
+		}
+		if node.ChildNodeCount > 0 {
+			fmt.Fprintf(w, "%schildren:\n", padding+indent)
+			printNodes(w, node.Children, padding+indent+indent, indent)
+		}
 	}
 }
